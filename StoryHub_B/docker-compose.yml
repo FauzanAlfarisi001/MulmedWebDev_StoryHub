@@ -1,0 +1,120 @@
+version: '3.9'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: storyhub-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password123
+      MYSQL_DATABASE: storyhub
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: storyhub-rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build: ./services/auth-service
+    container_name: storyhub-auth
+    restart: always
+    ports:
+      - "4197:4197"
+    environment:
+      PORT: 4197
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: password123
+      DB_NAME: storyhub
+      JWT_SECRET: 41723cc6f8d3bb5c26bf12981e7d83344d81e4da0d53da2d59fe2ebb9f7bb70030d3e27b7d41625a253bbd865eb9f9bc5d7942f39142c1e26bbfca1e09081708
+      JWT_EXPIRES: 2d
+      REFRESH_SECRET: 78aa7932a8c618b0e89f6278ea933ad907016ddb367e9e442b61b1a7e4ebe02967e9f3d2350104e4a61404ac296973110c857b2e5278296cef5861d02c1174ae
+      REFRESH_EXPIRES: 7d
+      RABBITMQ_URL: amqp://rabbitmq
+      GATEWAY_URL: http://gateway:4097
+    volumes:
+      - ./image:/app/../../../image
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  art-service:
+    build: ./services/art-service
+    container_name: storyhub-art
+    restart: always
+    ports:
+      - "4297:4297"
+    environment:
+      PORT: 4297
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: password123
+      DB_NAME: storyhub
+      AUTH_SERVICE_URL: http://auth-service:4197
+      RABBITMQ_URL: amqp://rabbitmq
+    volumes:
+      - ./image:/app/../../../image
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  review-service:
+    build: ./services/review-service
+    container_name: storyhub-review
+    restart: always
+    ports:
+      - "4397:4397"
+    environment:
+      PORT: 4397
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: password123
+      DB_NAME: storyhub
+      AUTH_SERVICE_URL: http://auth-service:4197
+      ART_SERVICE_URL: http://art-service:4297
+      RABBITMQ_URL: amqp://rabbitmq
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  gateway:
+    build: ./gateway
+    container_name: storyhub-gateway
+    restart: always
+    ports:
+      - "4097:4097"
+    environment:
+      PORT: 4097
+      AUTH_URL: http://auth-service:4197
+      ART_URL: http://art-service:4297
+      REVIEW_URL: http://review-service:4397
+    depends_on:
+      - auth-service
+      - art-service
+      - review-service
+
+volumes:
+  mysql_data:

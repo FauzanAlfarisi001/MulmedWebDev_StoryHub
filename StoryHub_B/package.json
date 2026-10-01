@@ -1,0 +1,24 @@
+{
+  "name": "tugaspertemuan9",
+  "version": "1.0.0",
+  "description": "1. Download project backend.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --names \"GATEWAY,AUTH,ART,REVIEW\" \"npm run dev:gateway\" \"npm run dev:auth\" \"npm run dev:art\" \"npm run dev:review\"",
+    "dev:gateway": "cd gateway && node src/index.js",
+    "dev:auth": "cd services/auth-service && node src/index.js",
+    "dev:art": "cd services/art-service && node src/index.js",
+    "dev:review": "cd services/review-service && node src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "multer": "^2.1.1",
+    "uuid": "^14.0.0"
+  }
+}
